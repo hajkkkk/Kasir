@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#00ff88">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="KASIR.AI">
+<meta name="description" content="Scan struk belanja, analisis AI, export Excel">
+<title>KASIR.AI</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon-96.png">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+:root {
+  --bg: #0a0a0f;
+  --s1: #111118;
+  --s2: #1a1a24;
+  --bd: #2a2a3a;
+  --gr: #00ff88;
+  --pu: #7c3aed;
+  --am: #f59e0b;
+  --rd: #ff4466;
+  --mt: #666680;
+  --tx: #e8e8f0;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+body {
+  font-family: 'IBM Plex Mono', monospace;
+  background: var(--bg);
+  color: var(--tx);
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+/* Grid bg */
+body::before {
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image:
+    linear-gradient(rgba(0,255,136,0.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,255,136,0.03) 1px,transparent 1px);
+  background-size:40px 40px;
+  pointer-events:none;
+  z-index:0;
+}
+
+.app { position:relative; z-index:1; max-width:480px; margin:0 auto; padding:0 0 calc(90px + var(--safe-bottom)); }
+
+/* HEADER */
+.hdr {
+  display:flex; align-items:center; gap:12;
+  padding:16px 16px 14px;
+  background:rgba(10,10,15,0.9);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--bd);
+  position:sticky; top:0; z-index:100;
+}
+.logo-box { width:38px;height:38px;background:var(--gr);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 20px rgba(0,255,136,0.3);flex-shrink:0; }
+.logo-name { font-family:'Syne',sans-serif;font-size:20px;font-weight:800;letter-spacing:-0.5px; }
+.logo-name span { color:var(--gr); }
+.logo-sub { font-size:9px;color:var(--mt);letter-spacing:2px;text-transform:uppercase;margin-top:1px; }
+.badge { margin-left:auto;padding:4px 10px;background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.3);border-radius:16px;font-size:10px;color:var(--gr);white-space:nowrap; }
+
+/* PANELS */
+.panel {
+  background:var(--s1);
+  border:1px solid var(--bd);
+  border-radius:14px;
+  overflow:hidden;
+  margin:12px 16px 0;
+}
+.ph {
+  padding:12px 16px;
+  border-bottom:1px solid var(--bd);
+  display:flex; align-items:center; gap:8px;
+  background:var(--s2);
+}
+.step-dot {
+  width:22px;height:22px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Syne',sans-serif;font-weight:700;font-size:10px;
+  flex-shrink:0;
+}
+.ph-title { font-family:'Syne',sans-serif;font-weight:700;font-size:11px;letter-spacing:1px;text-transform:uppercase; }
+.pb { padding:16px; }
+
+/* UPLOAD ZONE */
+.upload-zone {
+  border:2px dashed var(--bd);
+  border-radius:12px;
+  padding:36px 16px;
+  text-align:center;
+  cursor:pointer;
+  transition:all 0.2s;
+  active:background:rgba(0,255,136,0.04);
+}
+.upload-zone.over { border-color:var(--gr);background:rgba(0,255,136,0.05); }
+.upload-zone:active { background:rgba(0,255,136,0.05); }
+.upload-icon { font-size:42px;margin-bottom:10px; }
+.upload-title { font-family:'Syne',sans-serif;font-weight:800;font-size:15px;margin-bottom:6px; }
+.upload-sub { font-size:12px;color:var(--mt);line-height:1.8; }
+.upload-sub b { color:var(--am); }
+
+/* IMG PREVIEW */
+.img-wrap { position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--bd);margin-bottom:12px; }
+.img-wrap img { width:100%;max-height:260px;object-fit:contain;background:#000;display:block; }
+.img-badge { position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.8);color:var(--gr);font-size:9px;padding:3px 8px;border-radius:4px;letter-spacing:1px; }
+.img-del { position:absolute;top:8px;right:8px;background:rgba(255,68,102,0.9);color:#fff;border:none;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace; }
+
+/* BUTTONS */
+.btn {
+  width:100%; padding:14px 0; border:none; border-radius:10px;
+  font-family:'Syne',sans-serif; font-weight:700; font-size:13px;
+  cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
+  transition:all 0.15s; -webkit-tap-highlight-color:transparent;
+}
+.btn:active { transform:scale(0.98); }
+.btn-green  { background:var(--gr); color:#000; }
+.btn-purple { background:var(--pu); color:#fff; }
+.btn-ghost  { background:transparent; border:1px dashed var(--bd); color:var(--mt); }
+.btn-red    { background:var(--rd); color:#fff; }
+.btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+.btn-sm { padding:10px; font-size:11px; border-radius:8px; }
+
+/* SPINNER */
+@keyframes spin { to{transform:rotate(360deg)} }
+.spin { width:14px;height:14px;border:2px solid rgba(0,255,136,0.2);border-top:2px solid var(--gr);border-radius:50%;animation:spin 0.6s linear infinite;flex-shrink:0; }
+
+/* ANALYSIS TEXT */
+.analysis-box {
+  background:var(--bg);
+  border:1px solid var(--bd);
+  border-radius:10px;
+  padding:14px;
+  font-size:12px;
+  line-height:1.9;
+  white-space:pre-wrap;
+  word-break:break-word;
+  color:var(--tx);
+  max-height:300px;
+  overflow-y:auto;
+}
+
+/* OCR STATUS */
+.ocr-status { display:flex;align-items:center;gap:10px;padding:12px;background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.2);border-radius:10px;font-size:12px;color:var(--gr);margin-bottom:10px; }
+
+/* TABLE */
+.items-table { width:100%;border-collapse:collapse;font-size:11px; }
+.items-table th { background:var(--s2);padding:8px 8px;text-align:left;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--mt);border-bottom:1px solid var(--bd); }
+.items-table th.r { text-align:right; }
+.items-table td { padding:8px 8px;border-bottom:1px solid rgba(42,42,58,0.4);vertical-align:middle; }
+.cell-inp {
+  background:transparent;border:1px solid transparent;color:var(--tx);
+  font-family:'IBM Plex Mono',monospace;font-size:11px;padding:3px 4px;
+  border-radius:4px;width:100%;outline:none;
+}
+.cell-inp:focus { border-color:var(--gr); }
+
+/* SUMMARY */
+.sum-box { background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:14px; }
+.sum-row { display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:12px; }
+.sum-row.total { border-top:1px solid var(--bd);margin-top:6px;padding-top:10px; }
+
+/* INPUTS */
+.field-wrap { margin-bottom:12px; }
+.field-label { font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mt);margin-bottom:5px; }
+.field { width:100%;padding:11px 12px;background:var(--bg);border:1px solid var(--bd);border-radius:8px;color:var(--tx);font-family:'IBM Plex Mono',monospace;font-size:13px;outline:none;transition:border-color 0.2s; }
+.field:focus { border-color:var(--gr); }
+.field-rp { padding-left:32px; }
+.field-prefix { position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--mt);font-size:12px;pointer-events:none; }
+
+/* QUICK CASH */
+.quick-row { display:flex;flex-wrap:wrap;gap:5px;margin-top:7px; }
+.qbtn { padding:5px 9px;background:var(--s2);border:1px solid var(--bd);border-radius:5px;color:var(--tx);font-family:'IBM Plex Mono',monospace;font-size:10px;cursor:pointer;transition:all 0.15s; }
+.qbtn:active { border-color:var(--am);color:var(--am); }
+
+/* KEMBALIAN */
+.kem-box { background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:13px;margin-bottom:12px; }
+
+/* TOAST */
+@keyframes su { from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1} }
+.toast {
+  position:fixed;bottom:calc(20px + var(--safe-bottom));left:50%;transform:translateX(-50%);
+  padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;
+  z-index:999;box-shadow:0 8px 32px rgba(0,0,0,0.5);
+  animation:su 0.3s ease;max-width:90vw;text-align:center;white-space:nowrap;
+}
+.toast-ok { background:var(--gr);color:#000; }
+.toast-err { background:var(--rd);color:#fff; }
+
+/* BOTTOM NAV (tabs) */
+.bnav {
+  position:fixed;bottom:0;left:0;right:0;
+  background:rgba(17,17,24,0.96);
+  backdrop-filter:blur(16px);
+  border-top:1px solid var(--bd);
+  display:flex;
+  padding-bottom:var(--safe-bottom);
+  z-index:200;
+}
+.bnav-btn {
+  flex:1;padding:12px 4px;border:none;background:transparent;
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:0.5px;
+  color:var(--mt);cursor:pointer;transition:color 0.2s;
+  -webkit-tap-highlight-color:transparent;
+}
+.bnav-btn.active { color:var(--gr); }
+.bnav-btn .icon { font-size:20px; }
+
+/* PAGE */
+.page { display:none; }
+.page.active { display:block; }
+
+/* INSTALL BANNER */
+.install-banner {
+  margin:12px 16px 0;
+  background:linear-gradient(135deg,rgba(0,255,136,0.12),rgba(124,58,237,0.12));
+  border:1px solid rgba(0,255,136,0.3);
+  border-radius:14px;
+  padding:16px;
+  display:flex;align-items:center;gap:12px;
+}
+.install-banner .i-icon { font-size:28px;flex-shrink:0; }
+.install-banner .i-text { flex:1; }
+.install-banner .i-title { font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:3px; }
+.install-banner .i-sub { font-size:11px;color:var(--mt);line-height:1.5; }
+.install-banner .i-btn { padding:8px 14px;background:var(--gr);color:#000;border:none;border-radius:8px;font-family:'Syne',sans-serif;font-weight:700;font-size:11px;cursor:pointer;white-space:nowrap;flex-shrink:0; }
+
+/* DONE ANIMATION */
+@keyframes pop { 0%{transform:scale(0.5);opacity:0} 70%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
+.done-icon { animation:pop 0.5s ease forwards; }
+
+/* scrollbar */
+::-webkit-scrollbar { width:3px; }
+::-webkit-scrollbar-thumb { background:var(--bd); border-radius:2px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="hdr">
+    <div class="logo-box">🧾</div>
+    <div>
+      <div class="logo-name">KASIR<span>.</span>AI</div>
+      <div class="logo-sub">Scan Struk → Excel</div>
+    </div>
+    <div class="badge" id="statusBadge">● SIAP</div>
+  </div>
+
+  <!-- ══ PAGE 1: SCAN ══ -->
+  <div class="page active" id="page-scan">
+
+    <!-- Install banner -->
+    <div class="install-banner" id="installBanner" style="display:none">
+      <div class="i-icon">📲</div>
+      <div class="i-text">
+        <div class="i-title">Install sebagai App</div>
+        <div class="i-sub">Tambahkan ke layar utama Android kamu</div>
+      </div>
+      <button class="i-btn" id="installBtn" onclick="installPWA()">Install</button>
+    </div>
+
+    <!-- Step 1: Upload -->
+    <div class="panel">
+      <div class="ph">
+        <div class="step-dot" style="background:var(--gr);color:#000">1</div>
+        <span class="ph-title">Upload Foto Struk</span>
+      </div>
+      <div class="pb">
+        <div id="uploadZone" class="upload-zone" onclick="document.getElementById('fileInput').click()">
+          <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="handleFile(this.files[0])">
+          <div class="upload-icon">📷</div>
+          <div class="upload-title">Foto Struk</div>
+          <div class="upload-sub">Ketuk untuk kamera / galeri<br><b>JPG · PNG · WEBP</b></div>
+        </div>
+
+        <div id="imgPreviewWrap" style="display:none">
+          <div class="img-wrap">
+            <img id="imgPreview" src="" alt="struk">
+            <div class="img-badge">📷 STRUK</div>
+            <button class="img-del" onclick="resetScan()">× Ganti</button>
+          </div>
+
+          <div id="ocrStatus" class="ocr-status" style="display:none">
+            <div class="spin"></div>
+            <span id="ocrMsg">Claude sedang membaca struk...</span>
+          </div>
+
+          <button class="btn btn-green" id="analyzeBtn" onclick="runAnalysis()">
+            <span>🔍</span><span>Analisis dengan AI</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Analysis result -->
+    <div class="panel" id="analysisPanel" style="display:none">
+      <div class="ph">
+        <div class="step-dot" style="background:var(--am);color:#000">2</div>
+        <span class="ph-title">Hasil Analisis AI</span>
+        <span id="itemCountBadge" style="margin-left:auto;font-size:10px;color:var(--gr);background:rgba(0,255,136,0.1);padding:2px 8px;border-radius:4px"></span>
+      </div>
+      <div class="pb">
+        <div class="analysis-box" id="analysisText"></div>
+      </div>
+    </div>
+
+    <!-- Step 3: Correct items -->
+    <div class="panel" id="itemsPanel" style="display:none">
+      <div class="ph">
+        <div class="step-dot" style="background:var(--pu);color:#fff">3</div>
+        <span class="ph-title">Koreksi Item</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>Nama Item</th>
+              <th class="r" style="width:40px">Qty</th>
+              <th class="r" style="width:76px">Harga</th>
+              <th class="r" style="width:82px">Subtotal</th>
+              <th style="width:24px"></th>
+            </tr>
+          </thead>
+          <tbody id="itemsTbody"></tbody>
+        </table>
+      </div>
+      <div style="padding:10px 12px">
+        <button class="btn btn-ghost btn-sm" onclick="addItemRow()">+ Tambah Item</button>
+      </div>
+    </div>
+
+    <!-- Step 4: Summary + payment -->
+    <div class="panel" id="payPanel" style="display:none">
+      <div class="ph">
+        <div class="step-dot" style="background:var(--am);color:#000">4</div>
+        <span class="ph-title">Pembayaran</span>
+      </div>
+      <div class="pb">
+        <div class="sum-box" style="margin-bottom:12px">
+          <div class="sum-row"><span style="color:var(--mt)">Subtotal</span><span id="sumSubtotal" style="font-weight:600">Rp 0</span></div>
+          <div class="sum-row" id="discRow" style="display:none"><span style="color:var(--mt)">Diskon</span><span id="sumDisc" style="color:var(--rd);font-weight:600">-</span></div>
+          <div class="sum-row total">
+            <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px">TOTAL</span>
+            <span id="sumTotal" style="font-family:'Syne',sans-serif;font-weight:700;font-size:20px;color:var(--gr)">Rp 0</span>
+          </div>
+        </div>
+
+        <div class="field-wrap">
+          <div class="field-label">Uang Bayar (Cash)</div>
+          <div style="position:relative">
+            <span class="field-prefix">Rp</span>
+            <input type="number" class="field field-rp" id="cashInput" placeholder="0" oninput="updateKembalian()">
+          </div>
+          <div class="quick-row" id="quickCash"></div>
+        </div>
+
+        <div class="kem-box">
+          <div class="sum-row">
+            <span style="font-size:13px">💰 Kembalian</span>
+            <span id="kembalianVal" style="font-family:'Syne',sans-serif;font-weight:700;font-size:18px;color:var(--am)">Rp 0</span>
+          </div>
+          <div id="kemStatus" style="font-size:11px;text-align:right;margin-top:3px"></div>
+        </div>
+
+        <div class="field-wrap">
+          <div class="field-label">Diskon (Rp)</div>
+          <div style="position:relative">
+            <span class="field-prefix">Rp</span>
+            <input type="number" class="field field-rp" id="discInput" placeholder="0" oninput="updateSummary()">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 5: Export -->
+    <div class="panel" id="exportPanel" style="display:none">
+      <div class="ph">
+        <div class="step-dot" style="background:var(--pu);color:#fff">5</div>
+        <span class="ph-title">Export</span>
+      </div>
+      <div class="pb" style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-green" id="exportBtn" onclick="doExport()" style="font-size:15px;padding:16px 0">
+          <span>📊</span><span>Download Excel (.xlsx)</span>
+        </button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="doPrint()">🖨 Cetak Struk</button>
+          <button class="btn btn-ghost btn-sm" onclick="resetAll()" style="border-color:rgba(255,68,102,0.3);color:var(--mt)">🗑 Reset</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end page-scan -->
+
+
+  <!-- ══ PAGE 2: SETTINGS ══ -->
+  <div class="page" id="page-settings">
+    <div class="panel">
+      <div class="ph">
+        <div class="step-dot" style="background:var(--gr);color:#000">⚙</div>
+        <span class="ph-title">Pengaturan Toko</span>
+      </div>
+      <div class="pb">
+        <div class="field-wrap">
+          <div class="field-label">Nama Toko</div>
+          <input type="text" class="field" id="storeNameInp" placeholder="Toko Saya" oninput="saveSetting('storeName',this.value)">
+        </div>
+        <div class="field-wrap">
+          <div class="field-label">Nama Kasir</div>
+          <input type="text" class="field" id="kasirInp" placeholder="Admin" oninput="saveSetting('kasir',this.value)">
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:12px">
+      <div class="ph">
+        <div class="step-dot" style="background:var(--am);color:#000">?</div>
+        <span class="ph-title">Cara Pakai</span>
+      </div>
+      <div class="pb" style="font-size:12px;line-height:2;color:var(--mt)">
+        <div>1️⃣ Upload foto struk JPG/PNG</div>
+        <div>2️⃣ Klik <b style="color:var(--tx)">Analisis dengan AI</b></div>
+        <div>3️⃣ Cek & koreksi item jika perlu</div>
+        <div>4️⃣ Isi uang bayar (optional)</div>
+        <div>5️⃣ Klik <b style="color:var(--gr)">Download Excel</b> ✓</div>
+        <div style="margin-top:10px;padding:10px;background:var(--s2);border-radius:8px;color:var(--tx);font-size:11px;line-height:1.7">
+          💡 Butuh koneksi internet untuk analisis AI.<br>
+          File Excel tersimpan di folder Downloads HP kamu.
+        </div>
+      </div>
+    </div>
+
+    <!-- Install info -->
+    <div class="panel" style="margin-top:12px">
+      <div class="ph">
+        <div class="step-dot" style="background:var(--pu);color:#fff">📲</div>
+        <span class="ph-title">Install Aplikasi</span>
+      </div>
+      <div class="pb" style="font-size:12px;line-height:1.9;color:var(--mt)">
+        <div style="font-size:13px;color:var(--tx);font-family:'Syne',sans-serif;font-weight:700;margin-bottom:8px">Cara install di Android:</div>
+        <div>1. Buka di Chrome browser</div>
+        <div>2. Ketuk ⋮ (titik tiga) di pojok kanan atas</div>
+        <div>3. Pilih <b style="color:var(--gr)">"Tambahkan ke layar utama"</b></div>
+        <div>4. Ketuk <b style="color:var(--tx)">Install / Tambahkan</b></div>
+        <div style="margin-top:10px;padding:10px;background:var(--s2);border-radius:8px;color:var(--am);font-size:11px">
+          ✓ Setelah di-install, icon KASIR.AI akan muncul di layar utama HP kamu seperti aplikasi biasa!
+        </div>
+        <button id="installBtn2" class="btn btn-green" style="margin-top:12px" onclick="installPWA()">
+          <span>📲</span><span>Install Sekarang</span>
+        </button>
+      </div>
+    </div>
+
+    <div style="text-align:center;padding:20px;font-size:10px;color:var(--mt)">
+      KASIR.AI v1.0 • Powered by Claude AI
+    </div>
+  </div><!-- end page-settings -->
+
+</div><!-- end app -->
+
+<!-- BOTTOM NAV -->
+<div class="bnav">
+  <button class="bnav-btn active" id="nav-scan" onclick="showPage('scan')">
+    <span class="icon">📷</span>
+    <span>SCAN</span>
+  </button>
+  <button class="bnav-btn" id="nav-settings" onclick="showPage('settings')">
+    <span class="icon">⚙️</span>
+    <span>SETTING</span>
+  </button>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast" style="display:none"></div>
+
+
+<script>
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
+let items    = [];
+let imgB64   = null;
+let imgType  = null;
+let deferredPrompt = null;
+
+const settings = {
+  storeName: localStorage.getItem('storeName') || '',
+  kasir:     localStorage.getItem('kasir') || '',
+};
+
+function saveSetting(k, v) {
+  settings[k] = v;
+  localStorage.setItem(k, v);
+}
+
+// ══════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.bnav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  document.getElementById('nav-'+name).classList.add('active');
+}
+
+// ══════════════════════════════════════════
+// FILE HANDLING
+// ══════════════════════════════════════════
+function handleFile(file) {
+  if (!file || !file.type.startsWith('image/')) { showToast('Upload gambar JPG/PNG/WEBP', 'err'); return; }
+  const r = new FileReader();
+  r.onload = e => {
+    const url = e.target.result;
+    document.getElementById('imgPreview').src = url;
+    document.getElementById('uploadZone').style.display = 'none';
+    document.getElementById('imgPreviewWrap').style.display = 'block';
+    imgB64 = url.split(',')[1];
+    imgType = file.type;
+    // Reset previous
+    document.getElementById('analysisPanel').style.display = 'none';
+    document.getElementById('itemsPanel').style.display = 'none';
+    document.getElementById('payPanel').style.display = 'none';
+    document.getElementById('exportPanel').style.display = 'none';
+    items = [];
+  };
+  r.readAsDataURL(file);
+}
+
+// drag & drop
+document.getElementById('uploadZone').addEventListener('dragover', e => { e.preventDefault(); document.getElementById('uploadZone').classList.add('over'); });
+document.getElementById('uploadZone').addEventListener('dragleave', () => document.getElementById('uploadZone').classList.remove('over'));
+document.getElementById('uploadZone').addEventListener('drop', e => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); });
+
+// ══════════════════════════════════════════
+// AI ANALYSIS
+// ══════════════════════════════════════════
+async function runAnalysis() {
+  if (!imgB64) return;
+
+  const btn = document.getElementById('analyzeBtn');
+  const status = document.getElementById('ocrStatus');
+  const msg = document.getElementById('ocrMsg');
+
+  btn.style.display = 'none';
+  status.style.display = 'flex';
+  document.getElementById('statusBadge').textContent = '● PROSES';
+  msg.textContent = 'Claude sedang membaca struk...';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 2000,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: imgType, data: imgB64 } },
+            { type: 'text', text: `Analisis gambar struk/nota belanja ini dengan teliti.
+
+Kembalikan HANYA JSON valid (tanpa teks lain, tanpa markdown):
+{
+  "toko": "nama toko jika ada",
+  "tanggal": "tanggal jika ada",
+  "items": [
+    {"nama": "nama item lengkap", "qty": 1, "harga": 12000}
+  ],
+  "subtotal": 0,
+  "diskon": 0,
+  "total": 0,
+  "cash": 0,
+  "kembalian": 0
+}
+
+Aturan:
+- Nama item harus lengkap dan akurat
+- qty default 1, harga adalah harga SATUAN
+- Semua angka integer tanpa pemisah ribuan` }
+          ]
+        }]
+      })
+    });
+
+    if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e?.error?.message||'HTTP '+res.status); }
+    const data = await res.json();
+    const raw = (data.content||[]).map(b=>b.text||'').join('').trim();
+    const jm = raw.match(/\{[\s\S]*\}/);
+    if (!jm) throw new Error('Respons tidak valid');
+    const parsed = JSON.parse(jm[0]);
+
+    // Apply to state
+    if (parsed.toko && !settings.storeName) {
+      settings.storeName = parsed.toko;
+      localStorage.setItem('storeName', parsed.toko);
+      document.getElementById('storeNameInp').value = parsed.toko;
+    }
+    if (parsed.cash > 0) document.getElementById('cashInput').value = parsed.cash;
+    if (parsed.diskon > 0) document.getElementById('discInput').value = parsed.diskon;
+
+    items = (parsed.items||[]).map((it,i) => ({
+      id: Date.now()+i, name: it.nama||`Item ${i+1}`,
+      qty: Number(it.qty)||1, price: Number(it.harga)||0
+    }));
+
+    // Build display text
+    const sub = items.reduce((s,i)=>s+i.qty*i.price, 0);
+    const lines = [
+      `🏪 Toko     : ${parsed.toko||'(tidak terdeteksi)'}`,
+      `📅 Tanggal  : ${parsed.tanggal||'(tidak terdeteksi)'}`,
+      ``,
+      `📦 ITEM TERDETEKSI (${items.length} item):`,
+      ...items.map((it,i)=>`  ${i+1}. ${it.name}\n     ${it.qty} × ${fRp(it.price)} = ${fRp(it.qty*it.price)}`),
+      ``,
+      `💰 Subtotal  : ${fRp(parsed.subtotal||sub)}`,
+      ...(parsed.diskon>0?[`🏷  Diskon    : ${fRp(parsed.diskon)}`]:[]),
+      `✅ Total     : ${fRp(parsed.total||sub)}`,
+      ...(parsed.cash>0?[`💵 Cash      : ${fRp(parsed.cash)}`]:[]),
+      ...(parsed.kembalian>0?[`🔄 Kembalian : ${fRp(parsed.kembalian)}`]:[]),
+    ];
+
+    document.getElementById('analysisText').textContent = lines.join('\n');
+    document.getElementById('itemCountBadge').textContent = items.length+' item';
+    document.getElementById('analysisPanel').style.display = 'block';
+
+    renderItems();
+    updateSummary();
+
+    document.getElementById('itemsPanel').style.display = 'block';
+    document.getElementById('payPanel').style.display = 'block';
+    document.getElementById('exportPanel').style.display = 'block';
+
+    status.style.display = 'none';
+    document.getElementById('statusBadge').textContent = '✓ SELESAI';
+    showToast(`✓ ${items.length} item terdeteksi!`);
+
+    // Scroll to analysis
+    document.getElementById('analysisPanel').scrollIntoView({behavior:'smooth',block:'start'});
+
+  } catch(err) {
+    status.style.display = 'none';
+    btn.style.display = 'flex';
+    document.getElementById('statusBadge').textContent = '● SIAP';
+    showToast('Analisis gagal: '+err.message, 'err');
+  }
+}
+
+// ══════════════════════════════════════════
+// ITEMS TABLE
+// ══════════════════════════════════════════
+function renderItems() {
+  const tbody = document.getElementById('itemsTbody');
+  tbody.innerHTML = items.map((it,i) => `
+    <tr id="row-${it.id}">
+      <td><input class="cell-inp" value="${escHtml(it.name)}" oninput="updateItem('${it.id}','name',this.value)"></td>
+      <td style="text-align:right"><input class="cell-inp" type="number" min="1" value="${it.qty}" style="width:36px;text-align:right" oninput="updateItem('${it.id}','qty',this.value)"></td>
+      <td style="text-align:right"><input class="cell-inp" type="number" value="${it.price}" style="width:72px;text-align:right" oninput="updateItem('${it.id}','price',this.value)"></td>
+      <td style="text-align:right;color:var(--gr);font-weight:600;white-space:nowrap" id="sub-${it.id}">${fRp(it.qty*it.price)}</td>
+      <td><button onclick="delItem('${it.id}')" style="background:none;border:none;color:var(--rd);cursor:pointer;font-size:15px;padding:2px 3px">×</button></td>
+    </tr>
+  `).join('');
+}
+
+function updateItem(id, field, val) {
+  const it = items.find(x=>x.id==id);
+  if (!it) return;
+  if (field==='name') it.name = val;
+  else if (field==='qty') { it.qty = parseFloat(val)||1; }
+  else if (field==='price') { it.price = parseFloat(val)||0; }
+  const sub = it.qty*it.price;
+  const el = document.getElementById('sub-'+id);
+  if (el) el.textContent = fRp(sub);
+  updateSummary();
+}
+
+function delItem(id) {
+  items = items.filter(x=>x.id!=id);
+  renderItems();
+  updateSummary();
+}
+
+function addItemRow() {
+  const newId = Date.now();
+  items.push({id:newId, name:'Item Baru', qty:1, price:0});
+  renderItems();
+  // focus new row
+  setTimeout(()=>{
+    const row = document.getElementById('row-'+newId);
+    if(row) row.querySelector('.cell-inp').focus();
+  }, 50);
+}
+
+// ══════════════════════════════════════════
+// SUMMARY
+// ══════════════════════════════════════════
+function updateSummary() {
+  const sub = items.reduce((s,it)=>s+it.qty*it.price,0);
+  const disc = parseFloat(document.getElementById('discInput').value)||0;
+  const total = Math.max(0, sub-disc);
+
+  document.getElementById('sumSubtotal').textContent = fRp(sub);
+  document.getElementById('sumDisc').textContent = '- '+fRp(disc);
+  document.getElementById('discRow').style.display = disc>0 ? 'flex' : 'none';
+  document.getElementById('sumTotal').textContent = fRp(total);
+
+  // Quick cash buttons
+  const qc = document.getElementById('quickCash');
+  const amts = [];
+  for (const r of [1000,2000,5000,10000,20000,50000,100000]) {
+    const x = Math.ceil((total||1)/r)*r;
+    if (!amts.includes(x) && amts.length<5) amts.push(x);
+  }
+  qc.innerHTML = amts.map(a=>`<button class="qbtn" onclick="document.getElementById('cashInput').value=${a};updateKembalian()">${fShort(a)}</button>`).join('');
+  updateKembalian();
+}
+
+function updateKembalian() {
+  const disc = parseFloat(document.getElementById('discInput').value)||0;
+  const sub = items.reduce((s,it)=>s+it.qty*it.price,0);
+  const total = Math.max(0,sub-disc);
+  const cash = parseFloat(document.getElementById('cashInput').value)||0;
+  const kem = cash - total;
+  const el = document.getElementById('kembalianVal');
+  const st = document.getElementById('kemStatus');
+  el.textContent = kem<0 ? '- '+fRp(Math.abs(kem)) : fRp(kem);
+  el.style.color = kem<0 ? 'var(--rd)' : 'var(--am)';
+  if (cash>0) {
+    st.textContent = kem<0 ? `⚠ Uang kurang ${fRp(Math.abs(kem))}` : kem===0 ? '✓ Pas!' : '✓ Kembalikan ke pelanggan';
+    st.style.color = kem<0 ? 'var(--rd)' : 'var(--gr)';
+  } else st.textContent='';
+}
+
+// ══════════════════════════════════════════
+// EXPORT EXCEL
+// ══════════════════════════════════════════
+function doExport() {
+  if (!items.length) { showToast('Tidak ada item!','err'); return; }
+  if (!window.XLSX) { showToast('Library Excel belum siap','err'); return; }
+
+  const XLSX = window.XLSX;
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('id-ID',{year:'numeric',month:'long',day:'numeric'});
+  const timeStr = now.toLocaleTimeString('id-ID');
+  const noStruk = 'STR-'+String(now.getFullYear()).slice(-2)+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0')+'-'+String(Math.floor(Math.random()*9000)+1000);
+  const sn = settings.storeName||document.getElementById('storeNameInp').value||'Toko Saya';
+  const ks = settings.kasir||document.getElementById('kasirInp').value||'Admin';
+  const sub = items.reduce((s,it)=>s+it.qty*it.price,0);
+  const disc = parseFloat(document.getElementById('discInput').value)||0;
+  const total = Math.max(0,sub-disc);
+  const cash = parseFloat(document.getElementById('cashInput').value)||0;
+  const kem = cash-total;
+
+  const wsData = [
+    [sn],['Struk Pembelian'],
+    ['No. Struk:',noStruk],['Tanggal:',dateStr],['Jam:',timeStr],['Kasir:',ks],
+    [],
+    ['No','Nama Item','Qty','Harga Satuan (Rp)','Subtotal (Rp)'],
+    ...items.map((it,i)=>[i+1,it.name,it.qty,it.price,it.qty*it.price]),
+    [],
+    ['','','','Subtotal:',sub],
+    ...(disc>0?[['','','','Diskon:',-disc]]:[]),
+    ['','','','TOTAL:',total],
+    ['','','','Cash:',cash],
+    ['','','','Kembalian:',kem],
+  ];
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{wch:5},{wch:34},{wch:8},{wch:20},{wch:18}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Struk');
+  XLSX.writeFile(wb, `Struk_${sn.replace(/\s+/g,'_')}_${noStruk.split('-')[3]}.xlsx`);
+  showToast('✓ Excel berhasil didownload!');
+}
+
+// ══════════════════════════════════════════
+// PRINT
+// ══════════════════════════════════════════
+function doPrint() {
+  if (!items.length) { showToast('Tidak ada item!','err'); return; }
+  const sn = settings.storeName||'Toko Saya';
+  const ks = settings.kasir||'Admin';
+  const now = new Date();
+  const sub = items.reduce((s,it)=>s+it.qty*it.price,0);
+  const disc = parseFloat(document.getElementById('discInput').value)||0;
+  const total = Math.max(0,sub-disc);
+  const cash = parseFloat(document.getElementById('cashInput').value)||0;
+  const kem = cash-total;
+  const w = window.open('','_blank','width=340,height=600');
+  w.document.write(`<html><head><title>Struk</title><style>body{font-family:monospace;font-size:12px;width:290px;margin:0 auto;padding:12px}.c{text-align:center}.r{text-align:right}.l{border-top:1px dashed #000;margin:8px 0}.b{font-weight:bold}table{width:100%;border-collapse:collapse}td{padding:3px 0}</style></head><body onload="window.print()"><div class="c b" style="font-size:15px">${sn}</div><div class="c" style="font-size:11px">${ks}</div><div class="c">================================</div><div>Tanggal:${now.toLocaleDateString('id-ID')}</div><div>Jam:${now.toLocaleTimeString('id-ID')}</div><div class="l"></div><table>${items.map(it=>`<tr><td>${it.name}</td><td class="r">${fRp(it.qty*it.price)}</td></tr>${it.qty>1?`<tr><td style="font-size:10px;padding-left:8px;color:#666">${it.qty}x${fRp(it.price)}</td><td></td></tr>`:''}`).join('')}</table><div class="l"></div>${disc>0?`<div style="display:flex;justify-content:space-between"><span>Diskon</span><span>-${fRp(disc)}</span></div>`:''}<div style="display:flex;justify-content:space-between"><b>TOTAL</b><b>${fRp(total)}</b></div><div style="display:flex;justify-content:space-between"><span>Cash</span><span>${fRp(cash)}</span></div><div style="display:flex;justify-content:space-between"><span>Kembalian</span><span>${fRp(Math.max(0,kem))}</span></div><div class="l"></div><div class="c">Terima kasih! 🙏</div></body></html>`);
+}
+
+// ══════════════════════════════════════════
+// RESET
+// ══════════════════════════════════════════
+function resetScan() {
+  imgB64=null; imgType=null; items=[];
+  document.getElementById('fileInput').value='';
+  document.getElementById('uploadZone').style.display='block';
+  document.getElementById('imgPreviewWrap').style.display='none';
+  document.getElementById('analyzeBtn').style.display='flex';
+  document.getElementById('ocrStatus').style.display='none';
+  document.getElementById('analysisPanel').style.display='none';
+  document.getElementById('itemsPanel').style.display='none';
+  document.getElementById('payPanel').style.display='none';
+  document.getElementById('exportPanel').style.display='none';
+  document.getElementById('statusBadge').textContent='● SIAP';
+}
+
+function resetAll() {
+  resetScan();
+  document.getElementById('cashInput').value='';
+  document.getElementById('discInput').value='';
+  updateSummary();
+}
+
+// ══════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════
+function fRp(n) { return (!n&&n!==0)?'Rp 0':'Rp '+Math.round(n).toLocaleString('id-ID'); }
+function fShort(n) { return n>=1e6?'Rp'+(n/1e6).toFixed(1)+'jt':n>=1e3?'Rp'+(n/1e3).toFixed(n%1e3?1:0)+'rb':'Rp'+n; }
+function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+let toastTimer;
+function showToast(msg, type='ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast toast-'+(type==='err'?'err':'ok');
+  el.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.style.display='none', 3000);
+}
+
+// ══════════════════════════════════════════
+// PWA INSTALL
+// ══════════════════════════════════════════
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installBanner').style.display = 'flex';
+});
+
+function installPWA() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(r => {
+      if (r.outcome==='accepted') showToast('✓ App berhasil di-install!');
+      deferredPrompt = null;
+      document.getElementById('installBanner').style.display = 'none';
+    });
+  } else {
+    showToast('Buka di Chrome → ⋮ → Tambahkan ke layar utama');
+  }
+}
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('installBanner').style.display = 'none';
+  showToast('✓ KASIR.AI berhasil di-install!');
+});
+
+// ══════════════════════════════════════════
+// SERVICE WORKER
+// ══════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(()=>{});
+}
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+document.getElementById('storeNameInp').value = settings.storeName;
+document.getElementById('kasirInp').value = settings.kasir;
+</script>
+</body>
+</html>
